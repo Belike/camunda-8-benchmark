@@ -4,12 +4,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 
+import java.util.List;
+
 @Configuration
 @ConfigurationProperties(prefix = "benchmark")
 public class BenchmarkConfiguration {
+    private Boolean multiTenancyEnabled = false;
+    private List<String> tenantIds;
 
     private String starterId = "benchmarkStarter1";
-
     private boolean startProcesses = true;
     private long startPiPerSecond = 500;
     private String jobType = "benchmark-task";
@@ -20,27 +23,26 @@ public class BenchmarkConfiguration {
     private Resource payloadPath; // = new UrlResource("classpath:bpmn/typical_payload.json");
     private Resource[] bpmnResource;
     private boolean autoDeployProcess = true;
-
     private String jobTypesToReplace;
+
     private String bpmnProcessIdToReplace;
-
     private long warmupPhaseDurationMillis = 0;
-    private String startRateAdjustmentStrategy="backpressure";
 
+    private String startRateAdjustmentStrategy="backpressure";
     private double maxBackpressurePercentage = 10;
+
     private double startPiReduceFactor = 0.4;
     private double startPiIncreaseFactor = 0.4;
-
     private int taskPiRatio;
 
     private long fixedBackOffDelay = 0;
-    
+
     private Resource messageScenario;
+
     private long messagesTtl;
     private long messagesScenariosPerSecond;
     private long delayBetweenMessages;
     private long messagesLoadDuration;
-
     public String getStartRateAdjustmentStrategy() {
         return startRateAdjustmentStrategy;
     }
@@ -57,6 +59,20 @@ public class BenchmarkConfiguration {
         this.warmupPhaseDurationMillis = warmupPhaseDurationMillis;
     }
 
+    public Boolean getMultiTenancyEnabled() {
+        return multiTenancyEnabled;
+    }
+
+    public void setMultiTenancyEnabled(Boolean multiTenancyEnabled) {
+        this.multiTenancyEnabled = multiTenancyEnabled;
+    }
+
+    public List<String> getTenantIds() {
+        return tenantIds;
+    }
+    public void setTenantIds(List<String> tenantIds) {
+        this.tenantIds = tenantIds;
+    }
     public int getTaskPiRatio() {
         return taskPiRatio;
     }

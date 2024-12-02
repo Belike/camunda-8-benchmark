@@ -3,6 +3,7 @@ package org.camunda.community.benchmarks;
 import java.time.Instant;
 import java.util.Map;
 
+import io.camunda.zeebe.spring.client.exception.ZeebeBpmnError;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.camunda.community.benchmarks.config.BenchmarkConfiguration;
@@ -18,7 +19,6 @@ import io.camunda.zeebe.client.api.response.ActivatedJob;
 import io.camunda.zeebe.client.api.worker.JobClient;
 import io.camunda.zeebe.client.api.worker.JobHandler;
 import io.camunda.zeebe.client.api.worker.JobWorkerBuilderStep1;
-import io.camunda.zeebe.spring.client.exception.ZeebeBpmnError;
 import io.camunda.zeebe.spring.client.jobhandling.CommandWrapper;
 
 @Component
@@ -44,11 +44,20 @@ public class JobWorker {
     private void registerWorker(String jobType) {
 
         long fixedBackOffDelay = config.getFixedBackOffDelay();
+        JobWorkerBuilderStep1.JobWorkerBuilderStep3 step3 = null;
 
-        JobWorkerBuilderStep1.JobWorkerBuilderStep3 step3 = client.newWorker()
-                .jobType(jobType)
-                .handler(new SimpleDelayCompletionHandler(false))
-                .name(jobType);
+        if(!config.getMultiTenancyEnabled()) {
+           step3 = client.newWorker()
+                    .jobType(jobType)
+                    .handler(new SimpleDelayCompletionHandler(false))
+                    .name(jobType);
+        }else {
+            step3 = client.newWorker()
+                    .jobType(jobType)
+                    .handler(new SimpleDelayCompletionHandler(false))
+                    .name(jobType)
+                    .tenantIds(config.getTenantIds());
+        }
 
         if(fixedBackOffDelay > 0) {
             step3.backoffSupplier(new FixedBackoffSupplier(fixedBackOffDelay));

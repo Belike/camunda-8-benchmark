@@ -5,9 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import org.camunda.community.benchmarks.config.BenchmarkConfiguration;
 import org.camunda.community.benchmarks.refactoring.RefactoredCommandWrapper;
@@ -38,6 +36,8 @@ public class StartPiExecutor {
     @Autowired
     private ZeebeClientConfiguration zeebeClientConfiguration;
 
+    private Random random = new Random();
+
     private Map<String, Object> benchmarkPayload;
 
     @PostConstruct
@@ -53,11 +53,23 @@ public class StartPiExecutor {
         variables.put(BENCHMARK_START_DATE_MILLIS, Instant.now().toEpochMilli());
         variables.put(BENCHMARK_STARTER_ID, config.getStarterId());
 
-        // Auto-complete logic from https://github.com/camunda-community-hub/spring-zeebe/blob/ec41c5af1f64e512c8e7a8deea2aeacb35e61a16/client/spring-zeebe/src/main/java/io/camunda/zeebe/spring/client/jobhandling/JobHandlerInvokingSpringBeans.java#L24
-        FinalCommandStep createCommand = client.newCreateInstanceCommand()
-                .bpmnProcessId(config.getBpmnProcessId())
-                .latestVersion()
-                .variables(variables);
+        FinalCommandStep createCommand = null;
+        if(!config.getMultiTenancyEnabled()) {
+            // Auto-complete logic from https://github.com/camunda-community-hub/spring-zeebe/blob/ec41c5af1f64e512c8e7a8deea2aeacb35e61a16/client/spring-zeebe/src/main/java/io/camunda/zeebe/spring/client/jobhandling/JobHandlerInvokingSpringBeans.java#L24
+            createCommand = client.newCreateInstanceCommand()
+                    .bpmnProcessId(config.getBpmnProcessId())
+                    .latestVersion()
+                    .variables(variables);
+        }else{
+            List<String> tenants = config.getTenantIds();
+            createCommand = client.newCreateInstanceCommand()
+                    .bpmnProcessId(config.getBpmnProcessId())
+                    .latestVersion()
+                    .variables(variables)
+                    // Random tenant for starting
+                    .tenantId(tenants.get(random.nextInt(tenants.size())));
+        }
+
         CommandWrapper command = new RefactoredCommandWrapper(
                 createCommand,
                 System.currentTimeMillis() + 5 * 60 * 1000, // 5 minutes

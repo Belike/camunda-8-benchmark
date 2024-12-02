@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.camunda.community.benchmarks.config.BenchmarkConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -28,19 +29,39 @@ public class ProcessDeployer {
     // Can't do @PostContruct, as this is called before the client is ready
     public void autoDeploy() {
         if (config.isAutoDeployProcess()) {
-            try {
-                LOG.info("Deploy " + StringUtils.arrayToCommaDelimitedString(config.getBpmnResource()) + " to Zeebe...");
-                DeployResourceCommandStep1.DeployResourceCommandStep2 deployResourceCommand = zeebeClient.newDeployResourceCommand()
-                        .addResourceStream(adjustInputStreamBasedOnConfig(config.getBpmnResource()[0].getInputStream()), config.getBpmnResource()[0].getFilename()); // Have to add at least the first resource to have the right class of Step2
-                for (int i = 1; i < config.getBpmnResource().length; i++) { // now adding the rest of resources starting from 1
-                    deployResourceCommand = deployResourceCommand.addResourceStream(adjustInputStreamBasedOnConfig(config.getBpmnResource()[i].getInputStream()), config.getBpmnResource()[i].getFilename());
+            if (!config.getMultiTenancyEnabled()) {
+                try {
+                    LOG.info("Deploy " + StringUtils.arrayToCommaDelimitedString(config.getBpmnResource()) + " to Zeebe...");
+                    DeployResourceCommandStep1.DeployResourceCommandStep2 deployResourceCommand = zeebeClient.newDeployResourceCommand()
+                            .addResourceStream(adjustInputStreamBasedOnConfig(config.getBpmnResource()[0].getInputStream()), config.getBpmnResource()[0].getFilename()); // Have to add at least the first resource to have the right class of Step2
+                    for (int i = 1; i < config.getBpmnResource().length; i++) { // now adding the rest of resources starting from 1
+                        deployResourceCommand = deployResourceCommand.addResourceStream(adjustInputStreamBasedOnConfig(config.getBpmnResource()[i].getInputStream()), config.getBpmnResource()[i].getFilename());
+                    }
+                    deployResourceCommand.send().join();
+                } catch (Exception ex) {
+                    throw new RuntimeException("Could not deploy to Zeebe: " + ex.getMessage(), ex);
                 }
-                deployResourceCommand.send().join();
-            } catch (Exception ex) {
-                throw new RuntimeException("Could not deploy to Zeebe: " + ex.getMessage(), ex);
+            } else {
+                try {
+                    LOG.info("Deploy " + StringUtils.arrayToCommaDelimitedString(config.getBpmnResource()) + " to Zeebe...");
+                    LOG.info("MultiTenancyEnabled is {}", config.getMultiTenancyEnabled());
+                    if (config.getTenantIds() != null) {
+                        DeployResourceCommandStep1.DeployResourceCommandStep2 deployResourceCommand = null;
+                        for (String tenant : config.getTenantIds()) {
+                            deployResourceCommand = zeebeClient.newDeployResourceCommand()
+                                    .addResourceStream(adjustInputStreamBasedOnConfig(config.getBpmnResource()[0].getInputStream()), config.getBpmnResource()[0].getFilename()).tenantId(tenant);
+                            deployResourceCommand.send().join();
+                        }
+                    } else {
+                        LOG.info("No Tenants provided, skipping deployment");
+                        throw new RuntimeException("Multi-Tenancy without Tenants");
+                    }
+                }catch(Exception ex){
+                    throw new RuntimeException("Could not deploy to Zeebe with MT: " + ex.getMessage(), ex);
+                    }
+                }
             }
         }
-    }
 
     private InputStream adjustInputStreamBasedOnConfig(InputStream is) throws IOException {
         if (config.getJobTypesToReplace()==null && config.getBpmnProcessIdToReplace()==null) {
