@@ -11,7 +11,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableAsync
 //@ZeebeDeployment(resources = "classpath:bpmn/typical_process.bpmn")
-    @Deployment
 class BenchmarkApplication  {
 
     public static void main(String[] args) {

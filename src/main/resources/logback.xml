@@ -17,6 +17,8 @@
 
     <logger name="io.camunda.zeebe.spring.client.jobhandling.DefaultCommandExceptionHandlingStrategy" level="ERROR" />
 
+    <!-- Add the new logger level for ZeebeCallCredentials here -->
+    <logger name="io.camunda.zeebe.client.impl.ZeebeCallCredentials" level="ERROR" />
 
     <root level="info">
         <appender-ref ref="STDOUT" />
